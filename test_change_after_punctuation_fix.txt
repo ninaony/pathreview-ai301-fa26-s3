@@ -1,0 +1,18 @@
+== Branch: fix/59-faithfulness-checker-punctuation-induced-mismatch (after the punctuation fix) ==
+
+== 1. target test: pytest tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_multiple_context_chunks -q ==
+.                                                                        [100%]
+1 passed in 0.15s
+
+== 2. pytest tests/unit/test_faithfulness_checker.py -q ==
+..x..........x....x...                                                   [100%]
+19 passed, 3 xfailed in 0.13s
+
+== 3. direct calls (punctuation only; semantic fallback is on a separate branch) ==
+_is_supported('Knows Python','The candidate knows Python'):
+True
+_is_supported('Python, JavaScript, and Docker','python javascript docker'):
+True
+
+== 4. full suite: pytest -q ==
+376 passed, 52 xfailed, 1 warning in 6.62s

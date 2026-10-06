@@ -1,10 +1,14 @@
 """Check if generated feedback is supported by retrieved context."""
 
 import re
+import string
 
 import structlog
 
 logger = structlog.get_logger()
+
+# Punctuation stripped from the edges of words; "#" and "+" stay so "C#" and "C++" survive
+STRIP_CHARS = string.punctuation.replace("#", "").replace("+", "")
 
 
 class FaithfulnessChecker:
@@ -80,6 +84,10 @@ class FaithfulnessChecker:
         # Tokenize and check for keyword overlap
         claim_tokens = set(claim.lower().split())
         context_tokens = set(context.lower().split())
+
+        # Strip punctuation around each word so "python," matches "python"
+        claim_tokens = {token.strip(STRIP_CHARS) for token in claim_tokens} - {""}
+        context_tokens = {token.strip(STRIP_CHARS) for token in context_tokens} - {""}
 
         # Require at least some meaningful overlap
         overlap = claim_tokens & context_tokens

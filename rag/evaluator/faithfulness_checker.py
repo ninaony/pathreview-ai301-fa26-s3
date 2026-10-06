@@ -1,10 +1,38 @@
 """Check if generated feedback is supported by retrieved context."""
 
+import math
 import re
 
 import structlog
 
+from core.config import settings
+from ingestion.embeddings.provider import EmbeddingProvider, get_embedding_provider
+
 logger = structlog.get_logger()
+
+# Short claims with little word overlap are compared by meaning instead
+SHORT_CLAIM_MAX_WORDS = 4
+SEMANTIC_SUPPORT_THRESHOLD = 0.5
+
+
+def _semantic_score(claim: str, context: str, provider: EmbeddingProvider | None = None) -> float:
+    """Cosine similarity between the embedded claim and the embedded context.
+
+    Args:
+        claim: Claim text
+        context: Context text
+        provider: Embedding provider; defaults to the one named in settings
+
+    Returns:
+        Cosine similarity of the two embeddings
+    """
+    if provider is None:
+        provider = get_embedding_provider(settings.llm_provider)
+
+    claim_vec, context_vec = provider.embed([claim, context])
+    dot = sum(a * b for a, b in zip(claim_vec, context_vec))
+    norm = math.sqrt(sum(a * a for a in claim_vec)) * math.sqrt(sum(b * b for b in context_vec))
+    return dot / norm if norm else 0.0
 
 
 class FaithfulnessChecker:
@@ -67,12 +95,13 @@ class FaithfulnessChecker:
         return claims[:10]  # Limit to 10 claims for scoring
 
     @staticmethod
-    def _is_supported(claim: str, context: str) -> bool:
+    def _is_supported(claim: str, context: str, provider: EmbeddingProvider | None = None) -> bool:
         """Check if a claim is supported by context.
 
         Args:
             claim: Claim text
             context: Context text
+            provider: Embedding provider for the semantic fallback (defaults to settings)
 
         Returns:
             True if claim is supported
@@ -105,4 +134,15 @@ class FaithfulnessChecker:
         }
         meaningful_overlap = overlap - stop_words
 
-        return len(meaningful_overlap) >= 2
+        if len(meaningful_overlap) >= 2:
+            return True
+
+        # Short claims rarely share two words with the context even when the meaning
+        # matches, so fall back to comparing embeddings
+        if len(claim.split()) <= SHORT_CLAIM_MAX_WORDS:
+            try:
+                return _semantic_score(claim, context, provider) > SEMANTIC_SUPPORT_THRESHOLD
+            except Exception:
+                logger.warning("faithfulness_semantic_fallback_failed", exc_info=True)
+
+        return False

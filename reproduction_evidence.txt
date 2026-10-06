@@ -1,0 +1,44 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.0, pytest-9.1.1, pluggy-1.6.0
+benchmark: 5.3.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/ninaonyemeziem/Library/Mobile Documents/com~apple~CloudDocs/Desktop/code/codepath/ai301/pathreview-ai301-fa26-s3
+configfile: pyproject.toml
+plugins: hypothesis-6.168.3, cov-7.1.0, asyncio-1.4.0, benchmark-5.3.0, pytest_httpserver-1.1.5, platformdirs-4.12.1, anyio-4.15.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 1 item
+
+tests/unit/test_faithfulness_checker.py F                                [100%]
+
+=================================== FAILURES ===================================
+_____________ TestFaithfulnessChecker.test_multiple_context_chunks _____________
+
+self = <tests.unit.test_faithfulness_checker.TestFaithfulnessChecker object at 0x109bf4050>
+checker = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x1098c6f90>
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="issue #59: faithfulness checker can never mark short claims as supported",
+    )
+    def test_multiple_context_chunks(self, checker):
+        """Test multiple context chunks contribute to score."""
+        feedback = "The developer has Python, JavaScript, and Docker experience."
+        context_chunks = [
+            {"text": "Python expertise shown in backend projects."},
+            {"text": "JavaScript skills demonstrated in frontend development."},
+            {"text": "Docker and containerization knowledge evident in CI/CD pipelines."},
+        ]
+    
+        score = checker.check(feedback, context_chunks)
+    
+        assert isinstance(score, float)
+        assert 0.0 <= score <= 1.0
+        # All three claims supported
+>       assert score > 0.5
+E       assert 0.0 > 0.5
+
+tests/unit/test_faithfulness_checker.py:106: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-09-29 13:53:18 [info     ] faithfulness_checked           claims_count=1 score=0.0 supported_count=0
+=========================== short test summary info ============================
+FAILED tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_multiple_context_chunks
+============================== 1 failed in 0.20s ===============================

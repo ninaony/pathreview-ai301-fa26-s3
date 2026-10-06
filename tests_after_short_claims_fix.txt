@@ -1,0 +1,40 @@
+== 1. pytest tests/unit/test_faithfulness_checker.py -q ==
+..x...x......x....x..........                                            [100%]
+=============================== warnings summary ===============================
+core/config.py:7
+  /Users/ninaonyemeziem/Desktop/code/codepath/ai301/pathreview-ai301-fa26-s3/core/config.py:7: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Settings(BaseSettings):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+25 passed, 4 xfailed, 1 warning in 0.48s
+
+== 2. direct calls (LLM_PROVIDER=mock) ==
+_is_supported('Knows Python', 'The candidate knows Python'):
+True
+_is_supported('Knows Python', 'python expert'):
+False
+
+== 3. full suite: pytest -q ==
+x..........xx.....x.............x.xxx.x...x..x...x......x....x.......... [ 16%]
+........x...........................................x............xx..... [ 33%]
+..x.....x....x........................x................................. [ 49%]
+................................x........x.....x........................ [ 66%]
+x................xx.x..xx...xxxxx...xxx.xxx.xx.....................x.... [ 82%]
+.................x....xx..xx.......x...............x.x.................. [ 99%]
+...                                                                      [100%]/Users/ninaonyemeziem/Desktop/code/codepath/ai301/pathreview-ai301-fa26-s3/.venv/lib/python3.13/site-packages/_pytest/unraisableexception.py:33: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+
+=============================== warnings summary ===============================
+core/config.py:7
+  /Users/ninaonyemeziem/Desktop/code/codepath/ai301/pathreview-ai301-fa26-s3/core/config.py:7: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Settings(BaseSettings):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+382 passed, 53 xfailed, 1 warning in 6.55s
+
+== 4. direct calls with the real provider (LLM_PROVIDER=openai, text-embedding-3-small) ==
+_is_supported('Knows Python', 'The candidate knows Python') -> True   (2 words overlap, semantic fallback not needed)
+   cosine score (computed separately for reference) -> 0.7111
+_is_supported('Knows Python', 'python expert') -> True   (1 word overlap, passed via semantic fallback)
+   cosine score -> 0.6155   (threshold: > 0.5)

@@ -1,8 +1,30 @@
 """Tests for faithfulness_checker.py"""
 
+import math
+
 import pytest
 
+from ingestion.embeddings.provider import EmbeddingProvider
 from rag.evaluator.faithfulness_checker import FaithfulnessChecker
+
+
+class FakeProvider(EmbeddingProvider):
+    """Returns the claim/context vectors it was given and records its calls."""
+
+    def __init__(self, claim_vec, context_vec):
+        self.vectors = [claim_vec, context_vec]
+        self.calls = 0
+
+    def embed(self, texts):
+        self.calls += 1
+        return self.vectors
+
+
+class FailingProvider(EmbeddingProvider):
+    """Always raises, like an unreachable embedding API."""
+
+    def embed(self, texts):
+        raise RuntimeError("embedding service unavailable")
 
 
 @pytest.mark.unit
@@ -70,7 +92,7 @@ class TestFaithfulnessChecker:
     def test_empty_context_chunks_returns_zero(self, checker):
         """Test empty context chunks returns 0.0."""
         feedback = "Some feedback"
-        context_chunks = []
+        context_chunks: list[dict] = []
 
         score = checker.check(feedback, context_chunks)
 
@@ -79,7 +101,7 @@ class TestFaithfulnessChecker:
     def test_both_empty_returns_zero(self, checker):
         """Test both empty returns 0.0."""
         feedback = ""
-        context_chunks = []
+        context_chunks: list[dict] = []
 
         score = checker.check(feedback, context_chunks)
 
@@ -266,3 +288,59 @@ class TestFaithfulnessChecker:
         supported = checker._is_supported(claim, context)
 
         assert supported is True
+
+
+@pytest.mark.unit
+class TestSemanticFallback:
+    """Short claims with little word overlap are compared by embedding similarity."""
+
+    SHORT_CLAIM = "Knows Python"
+    CONTEXT = "python expert"
+
+    def test_high_similarity_is_supported(self):
+        provider = FakeProvider([1.0, 0.0], [1.0, 0.1])
+
+        assert FaithfulnessChecker._is_supported(self.SHORT_CLAIM, self.CONTEXT, provider) is True
+
+    def test_low_similarity_is_not_supported(self):
+        provider = FakeProvider([1.0, 0.0], [0.0, 1.0])
+
+        assert FaithfulnessChecker._is_supported(self.SHORT_CLAIM, self.CONTEXT, provider) is False
+
+    def test_long_claim_skips_fallback(self):
+        provider = FakeProvider([1.0, 0.0], [1.0, 0.0])
+
+        supported = FaithfulnessChecker._is_supported(
+            "The developer knows Python well", "python expert", provider
+        )
+
+        assert supported is False
+        assert provider.calls == 0
+
+    def test_enough_word_overlap_skips_fallback(self):
+        provider = FakeProvider([1.0, 0.0], [0.0, 1.0])
+
+        supported = FaithfulnessChecker._is_supported(
+            "Knows Python Django", "knows python django", provider
+        )
+
+        assert supported is True
+        assert provider.calls == 0
+
+    def test_similarity_exactly_at_threshold_is_not_supported(self):
+        # cosine([1,1,1,1], [1,0,0,0]) == 0.5
+        provider = FakeProvider([1.0, 1.0, 1.0, 1.0], [1.0, 0.0, 0.0, 0.0])
+
+        assert FaithfulnessChecker._is_supported(self.SHORT_CLAIM, self.CONTEXT, provider) is False
+
+    def test_similarity_just_above_threshold_is_supported(self):
+        provider = FakeProvider([1.0, 0.0], [0.51, math.sqrt(1 - 0.51**2)])
+
+        assert FaithfulnessChecker._is_supported(self.SHORT_CLAIM, self.CONTEXT, provider) is True
+
+    def test_provider_error_falls_back_to_word_overlap(self):
+        supported = FaithfulnessChecker._is_supported(
+            self.SHORT_CLAIM, self.CONTEXT, FailingProvider()
+        )
+
+        assert supported is False

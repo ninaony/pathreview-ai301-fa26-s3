@@ -1,0 +1,97 @@
+== Branch: fix/59-faithfulness-checker-punctuation-induced-mismatch @ 2f4e82f (before the fix) ==
+
+== 1. target test: pytest tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_multiple_context_chunks --runxfail ==
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ TestFaithfulnessChecker.test_multiple_context_chunks _____________
+
+self = <tests.unit.test_faithfulness_checker.TestFaithfulnessChecker object at 0x109772e00>
+checker = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x1094faa50>
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="issue #59: faithfulness checker can never mark short claims as supported",
+    )
+    def test_multiple_context_chunks(self, checker):
+        """Test multiple context chunks contribute to score."""
+        feedback = "The developer has Python, JavaScript, and Docker experience."
+        context_chunks = [
+            {"text": "Python expertise shown in backend projects."},
+            {"text": "JavaScript skills demonstrated in frontend development."},
+            {"text": "Docker and containerization knowledge evident in CI/CD pipelines."},
+        ]
+    
+        score = checker.check(feedback, context_chunks)
+    
+        assert isinstance(score, float)
+        assert 0.0 <= score <= 1.0
+        # All three claims supported
+>       assert score > 0.5
+E       assert 0.0 > 0.5
+
+tests/unit/test_faithfulness_checker.py:106: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-10-06 16:19:36 [info     ] faithfulness_checked           claims_count=1 score=0.0 supported_count=0
+=========================== short test summary info ============================
+FAILED tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_multiple_context_chunks
+1 failed in 0.17s
+
+== 2. whole file with markers ignored: pytest tests/unit/test_faithfulness_checker.py --runxfail -q ==
+..F...F......F....F...                                                   [100%]
+=================================== FAILURES ===================================
+______ TestFaithfulnessChecker.test_partial_support_returns_middle_score _______
+
+self = <tests.unit.test_faithfulness_checker.TestFaithfulnessChecker object at 0x1074ea650>
+checker = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x1075ac050>
+
+>       assert 0.2 < score < 0.8
+E       assert 0.2 < 0.0
+
+tests/unit/test_faithfulness_checker.py:59: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-10-06 16:19:37 [info     ] faithfulness_checked           claims_count=1 score=0.0 supported_count=0
+_____________ TestFaithfulnessChecker.test_multiple_context_chunks _____________
+
+self = <tests.unit.test_faithfulness_checker.TestFaithfulnessChecker object at 0x10751af10>
+checker = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x10751b240>
+
+>       assert score > 0.5
+E       assert 0.0 > 0.5
+
+tests/unit/test_faithfulness_checker.py:106: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-10-06 16:19:37 [info     ] faithfulness_checked           claims_count=1 score=0.0 supported_count=0
+_________ TestFaithfulnessChecker.test_multiple_claims_varying_support _________
+
+self = <tests.unit.test_faithfulness_checker.TestFaithfulnessChecker object at 0x1074fbd40>
+checker = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x1075c0bb0>
+
+>       assert 0.2 < score < 0.8
+E       assert 0.2 < 0.0
+
+tests/unit/test_faithfulness_checker.py:182: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-10-06 16:19:37 [info     ] faithfulness_checked           claims_count=2 score=0.0 supported_count=0
+_____________ TestFaithfulnessChecker.test_none_context_chunk_text _____________
+
+self = <tests.unit.test_faithfulness_checker.TestFaithfulnessChecker object at 0x1073c5450>
+checker = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x107639020>
+
+>       score = checker.check(feedback, context_chunks)
+
+tests/unit/test_faithfulness_checker.py:234: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <rag.evaluator.faithfulness_checker.FaithfulnessChecker object at 0x107639020>
+feedback = 'Has Python skills', context_chunks = [{'text': None}]
+
+>       context_text = " ".join([chunk.get("text", "") for chunk in context_chunks])
+E       TypeError: sequence item 0: expected str instance, NoneType found
+
+rag/evaluator/faithfulness_checker.py:38: TypeError
+=========================== short test summary info ============================
+FAILED tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_partial_support_returns_middle_score
+FAILED tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_multiple_context_chunks
+FAILED tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_multiple_claims_varying_support
+FAILED tests/unit/test_faithfulness_checker.py::TestFaithfulnessChecker::test_none_context_chunk_text
+4 failed, 18 passed in 0.13s
